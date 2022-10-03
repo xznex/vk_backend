@@ -11,7 +11,7 @@ TOE = '0'
 
 class TicTacGame:
     """
-        тесты будут, нормальный .pylintrc тоже
+        Some implementation of TicTacGame
     """
     def __init__(self):
         self.board = list(range(1, 10))
