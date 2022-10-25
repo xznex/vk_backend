@@ -13,30 +13,40 @@ def chat_list(request):
     if request.method == 'POST':
         return HttpResponse('405, Method Not Allowed', status=405)
     elif request.method == 'GET':
-        chats = {
-            "id": 5,
-            "companion": "Abraham",
-        }
-        return JsonResponse(chats)
+        chats = [
+            {
+                "id": 5,
+                "companion": "Abraham",
+            },
+            {
+                "id": 6,
+                "companion": "Lincoln",
+            },
+        ]
+        return JsonResponse({'chats': chats})
 
 
 def chat_page(request, pk):
     if request.method == 'POST':
         return HttpResponse('405, Method Not Allowed', status=405)
     elif request.method == 'GET':
-        chat = {
-            "id": pk,
-            "companion": "Abraham",
-        }
-        return JsonResponse(chat)
+        chat = [
+            {
+                "id": pk,
+                "companion": "Abraham",
+            },
+        ]
+        return JsonResponse({'chat': chat})
 
 
 def chat_create(request):
     if request.method == 'GET':
         return HttpResponse('405, Method Not Allowed', status=405)
     elif request.method == 'POST':
-        profile = {
-            "id": 5,
-            "name": "Abraham",
-        }
-        return JsonResponse(profile)
+        profile = [
+            {
+                "id": 5,
+                "companion": "Abraham",
+            },
+        ]
+        return JsonResponse({'profile': profile})
