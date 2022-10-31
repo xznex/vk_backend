@@ -1,4 +1,4 @@
-"""messanger URL Configuration
+"""application URL Configuration
 
 The `urlpatterns` list routes URLs to views. For more information please see:
     https://docs.djangoproject.com/en/4.1/topics/http/urls/
@@ -19,7 +19,7 @@ from django.conf.urls import include
 
 
 urlpatterns = [
-    path('admin/', admin.site.urls),
     path('', include('chats.urls')),
     path('users/', include('users.urls')),
+    path('admin/', admin.site.urls),
 ]
