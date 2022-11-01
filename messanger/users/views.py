@@ -6,9 +6,9 @@ def user_page(request, pk):
     page = [
         {
             "id": pk,
-            "nickname": "Дженнифер Эшли",
+            "name": "Дженнифер Эшли",
             "avatar": "img_12-12-09",
-            "dispatch_time": "15:52",
+            "sent_at": "15:52",
             "number": "+79099999999",
             "notifications": True,
             "block_user": False
