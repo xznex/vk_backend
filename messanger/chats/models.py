@@ -1,22 +1,21 @@
 from django.db import models
 from django.conf import settings
-# импортировать из django.conf
 
 
 class Chat(models.Model):
-    name = models.CharField(max_length=60, verbose_name="Название")
+    title = models.CharField(max_length=60, verbose_name="Название")
     avatar = models.ImageField(null=True, blank=True, verbose_name="Аватар")
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Дата создания")
     creator = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
-        related_name="chat_creator",
+        related_name="creator_chats",
         verbose_name="Создатель"
     )
     is_group = models.BooleanField(default=False, verbose_name="группа ли это")
 
     def __str__(self):
-        return self.name
+        return self.title
 
     class Meta:
         ordering = ["-created_at"]
@@ -28,15 +27,15 @@ class ChatMember(models.Model):
     chat = models.ForeignKey(
         Chat,
         on_delete=models.CASCADE,
-        related_name="chat",
+        related_name="chat_chatMembers",
         verbose_name="Чат"
     )
-    member = models.ManyToManyField(
+    members = models.ManyToManyField(
         settings.AUTH_USER_MODEL,
-        related_name="member",
+        related_name="member_chatMembers",
         verbose_name="Участник"
     )
-    is_creator = models.BooleanField(default=False, verbose_name="Создатель?")
+    # is_creator = models.BooleanField(default=False, verbose_name="Создатель?")
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Дата создания")
 
     class Meta:
@@ -49,13 +48,13 @@ class Message(models.Model):
     chat = models.ForeignKey(
         Chat,
         on_delete=models.CASCADE,
-        related_name="message_chat",
+        related_name="chat_messages",
         verbose_name="Чат"
     )
     sender = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
-        related_name="sender",
+        related_name="sender_messages",
         verbose_name="Отправитель"
     )
     is_delivered = models.BooleanField(default=False, verbose_name="Доставлено ли сообщение")
