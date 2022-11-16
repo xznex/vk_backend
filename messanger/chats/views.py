@@ -1,9 +1,13 @@
+from django.views.decorators.http import require_GET, require_POST
+from django.views.decorators.csrf import csrf_exempt
 from django.shortcuts import render, get_object_or_404
 from django.http import JsonResponse
-from django.views.decorators.http import require_GET, require_POST
+
 from chats.models import Chat, ChatMember, Message
 from users.models import User
-from django.views.decorators.csrf import csrf_exempt
+
+
+TIME_FORMAT = '%d.%m.%Y %H:%M'
 
 
 @require_GET
@@ -26,7 +30,7 @@ def chat_create(request):
         {
             'chat': {
                 "title": chat.title,
-                "created_at": chat.created_at.strftime('%d.%m.%Y %H:%M'),
+                "created_at": chat.created_at.strftime(TIME_FORMAT),
                 "username": chat.creator.username,
                 "description": chat.description
             },
@@ -53,11 +57,11 @@ def chat_edit(request, chat_id):
         {
             'chat': {
                 "title": chat.title,
-                "created_at": chat.created_at.strftime('%d.%m.%Y %H:%M'),
+                "created_at": chat.created_at.strftime(TIME_FORMAT),
                 "username": chat.creator.username,
                 "description": chat.description
             },
-        }, json_dumps_params={'ensure_ascii': False}, status=201
+        }, json_dumps_params={'ensure_ascii': False}, status=200
     )
 
 
@@ -79,7 +83,7 @@ def chat_add_user(request):
                 "title": chat.title,
                 "username": user.username
             }
-        }, json_dumps_params={'ensure_ascii': False}
+        }, json_dumps_params={'ensure_ascii': False}, status=201
     )
 
 
@@ -94,7 +98,7 @@ def chat_delete_user(request):
     user = get_object_or_404(User, id=user_id)
     chat_member = get_object_or_404(ChatMember, chat=chat, member=user)
     chat_member.delete()
-    return JsonResponse({'success': "user removed from chat"}, json_dumps_params={'ensure_ascii': False})
+    return JsonResponse({'success': "user removed from chat"}, json_dumps_params={'ensure_ascii': False}, status=200)
 
 
 # 5. удалить чат по id
@@ -105,7 +109,7 @@ def chat_delete(request):
 
     chat = get_object_or_404(Chat, id=chat_id)
     chat.delete()
-    return JsonResponse({'success': "chat deleted"}, json_dumps_params={'ensure_ascii': False})
+    return JsonResponse({'success': "chat deleted"}, json_dumps_params={'ensure_ascii': False}, status=200)
 
 
 # 13. получить информацию о чате по id чата
@@ -116,11 +120,11 @@ def chat_detail(request, pk):
        "id": pk,
        "title": chat.title,
        "description": chat.description,
-       "created_at": chat.created_at.strftime('%d.%m.%Y %H:%M'),
+       "created_at": chat.created_at.strftime(TIME_FORMAT),
        "creator": chat.creator.username,
        "is_group": chat.is_group
     },
-    return JsonResponse({'chat': chat_out}, json_dumps_params={'ensure_ascii': False})
+    return JsonResponse({'chat': chat_out}, json_dumps_params={'ensure_ascii': False}, status=200)
 
 
 # 10. получить список всех чатов
@@ -133,11 +137,11 @@ def chat_list(request):
             "id": chat.id,
             "title": chat.title,
             "description": chat.description,
-            "created_at": chat.created_at.strftime('%d.%m.%Y %H:%M'),
+            "created_at": chat.created_at.strftime(TIME_FORMAT),
             "creator": chat.creator.username,
             "is_group": chat.is_group
         })
-    return JsonResponse({'chats': chat_list}, json_dumps_params={'ensure_ascii': False})
+    return JsonResponse({'chats': chat_list}, json_dumps_params={'ensure_ascii': False}, status=200)
 
 
 @require_GET
@@ -150,11 +154,11 @@ def chats_by_user_id(request, user_id):
             "id": chat.id,
             "title": chat.title,
             "description": chat.description,
-            "created_at": chat.created_at.strftime('%d.%m.%Y %H:%M'),
+            "created_at": chat.created_at.strftime(TIME_FORMAT),
             "creator": chat.creator.username,
             "is_group": chat.is_group
         })
-    return JsonResponse({'chats': chat_list}, json_dumps_params={'ensure_ascii': False})
+    return JsonResponse({'chats': chat_list}, json_dumps_params={'ensure_ascii': False}, status=200)
 
 
 # 6. отправить сообщение по id чата
@@ -171,10 +175,10 @@ def chat_send_message(request):
             'message': {
                 "username": chat_member.member.username,
                 "title": chat_member.chat.title,
-                "sent_at": message.sent_at.strftime('%d.%m.%Y %H:%M'),
+                "sent_at": message.sent_at.strftime(TIME_FORMAT),
                 "text": text
             }
-        }, json_dumps_params={'ensure_ascii': False}
+        }, json_dumps_params={'ensure_ascii': False}, status=201
     )
 
 
@@ -185,8 +189,11 @@ def message_edit(request):
     message_id = request.POST.get('message_id')
     text = request.POST.get('text')
 
+    if not Message.objects.filter(id=message_id).exists():
+        return JsonResponse({'error': 'message not found'}, json_dumps_params={'ensure_ascii': False})
+
     Message.objects.filter(id=message_id).update(text=text)
-    return JsonResponse({'message': text}, json_dumps_params={'ensure_ascii': False})
+    return JsonResponse({'message': text}, json_dumps_params={'ensure_ascii': False}, status=200)
 
 
 # 8. пометить сообщение прочитанным по id сообщения
@@ -198,7 +205,7 @@ def message_delivered(request):
     message = get_object_or_404(Message, id=message_id)
     message.is_delivered = True
     message.save()
-    return JsonResponse({'success': "message delivered"}, json_dumps_params={'ensure_ascii': False})
+    return JsonResponse({'success': "message delivered"}, json_dumps_params={'ensure_ascii': False}, status=200)
 
 
 # 9. удалить сообщение по id сообщения
@@ -209,7 +216,7 @@ def message_delete(request):
 
     message = get_object_or_404(Message, id=message_id)
     message.delete()
-    return JsonResponse({'success': "message deleted"}, json_dumps_params={'ensure_ascii': False})
+    return JsonResponse({'success': "message deleted"}, json_dumps_params={'ensure_ascii': False}, status=200)
 
 
 @require_GET
@@ -220,10 +227,10 @@ def message_detail(request, message_id):
         "chat": message.chat.title,
         "sender": message.sender.member.username,
         "is_delivered": message.is_delivered,
-        "sent_at": message.sent_at.strftime('%d.%m.%Y %H:%M'),
+        "sent_at": message.sent_at.strftime(TIME_FORMAT),
         "text": message.text,
     },
-    return JsonResponse({'message': message_out}, json_dumps_params={'ensure_ascii': False})
+    return JsonResponse({'message': message_out}, json_dumps_params={'ensure_ascii': False}, status=200)
 
 
 # 11. получить список сообщений по id чата
@@ -238,9 +245,9 @@ def messages_by_chat_id(request, chat_id):
             "sender": message.sender.member.username,
             "is_delivered": message.is_delivered,
             "text": message.text,
-            "sent_at": message.sent_at.strftime('%d.%m.%Y %H:%M'),
+            "sent_at": message.sent_at.strftime(TIME_FORMAT),
         })
-    return JsonResponse({'messages': message_list}, json_dumps_params={'ensure_ascii': False})
+    return JsonResponse({'messages': message_list}, json_dumps_params={'ensure_ascii': False}, status=200)
 
 
 # 12. получить информацию о пользователе по id
@@ -251,6 +258,6 @@ def user_detail(request, user_id):
         "id": user.id,
         "phone": user.phone,
         "bio": user.bio,
-        "created_at": user.created_at.strftime('%d.%m.%Y %H:%M'),
+        "created_at": user.created_at.strftime(TIME_FORMAT),
     }
-    return JsonResponse({'user': user_info}, json_dumps_params={'ensure_ascii': False})
+    return JsonResponse({'user': user_info}, json_dumps_params={'ensure_ascii': False}, status=200)
