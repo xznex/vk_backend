@@ -3,6 +3,7 @@ from django.http import JsonResponse
 from django.views.decorators.http import require_GET, require_POST
 from chats.models import Chat, ChatMember, Message
 from users.models import User
+from django.views.decorators.csrf import csrf_exempt
 
 
 @require_GET
@@ -10,17 +11,36 @@ def start_page(request):
     return render(request, "chats/index.html")
 
 
+# 1. создать чат (минимальный набор полей: название, описание)
 @require_POST
-def chat_create(request, title, description, creator_id):
+@csrf_exempt
+def chat_create(request):
+    title = request.POST.get('title')
+    description = request.POST.get('description')
+    creator_id = request.POST.get('creator_id')
+
     creator = get_object_or_404(User, id=creator_id)
     chat = Chat.objects.create(title=title, description=description, creator=creator)
     ChatMember.objects.create(chat=chat, member=creator)
-    return JsonResponse({'chat': [chat.title, chat.created_at.strftime('%d.%m.%Y %H:%M'),
-                                  chat.creator.username, chat.description]}, json_dumps_params={'ensure_ascii': False})
+    return JsonResponse(
+        {
+            'chat': {
+                "title": chat.title,
+                "created_at": chat.created_at.strftime('%d.%m.%Y %H:%M'),
+                "username": chat.creator.username,
+                "description": chat.description
+            },
+        }, json_dumps_params={'ensure_ascii': False}, status=201
+    )
 
 
+# 2. отредактировать чат по id (минимальный набор полей: название, описание)
 @require_POST
-def chat_edit(request, chat_id, title=False, description=False):
+@csrf_exempt
+def chat_edit(request, chat_id):
+    title = request.POST.get('title')
+    description = request.POST.get('description')
+
     chat = get_object_or_404(Chat, id=chat_id)
     if title == chat.title or description == chat.description:
         return JsonResponse({'error': 'duplicate title or description'})
@@ -29,22 +49,47 @@ def chat_edit(request, chat_id, title=False, description=False):
     if description:
         chat.description = description
     chat.save()
-    return JsonResponse({'chat': [chat.title, chat.created_at.strftime('%d.%m.%Y %H:%M'),
-                                  chat.creator.username, chat.description]}, json_dumps_params={'ensure_ascii': False})
+    return JsonResponse(
+        {
+            'chat': {
+                "title": chat.title,
+                "created_at": chat.created_at.strftime('%d.%m.%Y %H:%M'),
+                "username": chat.creator.username,
+                "description": chat.description
+            },
+        }, json_dumps_params={'ensure_ascii': False}, status=201
+    )
 
 
+# 3. добавить участника в чат по id человека и id чата (минимальная проверка: то, что человек уже не добавлен в чат)
 @require_POST
-def chat_add_user(request, user_id, chat_id):
+@csrf_exempt
+def chat_add_user(request):
+    user_id = request.POST.get('user_id')
+    chat_id = request.POST.get('chat_id')
+
     chat = get_object_or_404(Chat, id=chat_id)
     user = get_object_or_404(User, id=user_id)
-    if ChatMember.objects.filter(chat=chat, member=user).first():
+    if ChatMember.objects.filter(chat=chat, member=user).exists():
         return JsonResponse({'error': "user already added"})
     ChatMember.objects.create(chat=chat, member=user)
-    return JsonResponse({'chat_member': [chat.title, user.username]}, json_dumps_params={'ensure_ascii': False})
+    return JsonResponse(
+        {
+            'chat_member': {
+                "title": chat.title,
+                "username": user.username
+            }
+        }, json_dumps_params={'ensure_ascii': False}
+    )
 
 
+# 4. удалить участника из чата по id человека и id чата
 @require_POST
-def chat_delete_user(request, user_id, chat_id):
+@csrf_exempt
+def chat_delete_user(request):
+    user_id = request.POST.get('user_id')
+    chat_id = request.POST.get('chat_id')
+
     chat = get_object_or_404(Chat, id=chat_id)
     user = get_object_or_404(User, id=user_id)
     chat_member = get_object_or_404(ChatMember, chat=chat, member=user)
@@ -52,13 +97,18 @@ def chat_delete_user(request, user_id, chat_id):
     return JsonResponse({'success': "user removed from chat"}, json_dumps_params={'ensure_ascii': False})
 
 
+# 5. удалить чат по id
 @require_POST
-def chat_delete(request, chat_id):
+@csrf_exempt
+def chat_delete(request):
+    chat_id = request.POST.get('chat_id')
+
     chat = get_object_or_404(Chat, id=chat_id)
     chat.delete()
     return JsonResponse({'success': "chat deleted"}, json_dumps_params={'ensure_ascii': False})
 
 
+# 13. получить информацию о чате по id чата
 @require_GET
 def chat_detail(request, pk):
     chat = get_object_or_404(Chat, id=pk)
@@ -73,6 +123,7 @@ def chat_detail(request, pk):
     return JsonResponse({'chat': chat_out}, json_dumps_params={'ensure_ascii': False})
 
 
+# 10. получить список всех чатов
 @require_GET
 def chat_list(request):
     chats = Chat.objects.all()
@@ -103,35 +154,59 @@ def chats_by_user_id(request, user_id):
             "creator": chat.creator.username,
             "is_group": chat.is_group
         })
-    print(chat_list)
     return JsonResponse({'chats': chat_list}, json_dumps_params={'ensure_ascii': False})
 
 
+# 6. отправить сообщение по id чата
 @require_POST
-def chat_send_message(request, chat_member_id, text):
+@csrf_exempt
+def chat_send_message(request):
+    chat_member_id = request.POST.get('chat_member_id')
+    text = request.POST.get('text')
+
     chat_member = get_object_or_404(ChatMember, id=chat_member_id)
     message = Message.objects.create(chat=chat_member.chat, sender=chat_member, text=text)
-    return JsonResponse({'message': [chat_member.member.username, chat_member.chat.title,
-                                     message.sent_at.strftime('%d.%m.%Y %H:%M'), text]},
-                        json_dumps_params={'ensure_ascii': False})
+    return JsonResponse(
+        {
+            'message': {
+                "username": chat_member.member.username,
+                "title": chat_member.chat.title,
+                "sent_at": message.sent_at.strftime('%d.%m.%Y %H:%M'),
+                "text": text
+            }
+        }, json_dumps_params={'ensure_ascii': False}
+    )
 
 
+# 7. отредактировать сообщение по id сообщения
 @require_POST
-def message_edit(request, message_id, text):
+@csrf_exempt
+def message_edit(request):
+    message_id = request.POST.get('message_id')
+    text = request.POST.get('text')
+
     Message.objects.filter(id=message_id).update(text=text)
     return JsonResponse({'message': text}, json_dumps_params={'ensure_ascii': False})
 
 
+# 8. пометить сообщение прочитанным по id сообщения
 @require_POST
-def message_delivered(request, message_id):
+@csrf_exempt
+def message_delivered(request):
+    message_id = request.POST.get('message_id')
+
     message = get_object_or_404(Message, id=message_id)
     message.is_delivered = True
     message.save()
     return JsonResponse({'success': "message delivered"}, json_dumps_params={'ensure_ascii': False})
 
 
+# 9. удалить сообщение по id сообщения
 @require_POST
-def message_delete(request, message_id):
+@csrf_exempt
+def message_delete(request):
+    message_id = request.POST.get('message_id')
+
     message = get_object_or_404(Message, id=message_id)
     message.delete()
     return JsonResponse({'success': "message deleted"}, json_dumps_params={'ensure_ascii': False})
@@ -151,6 +226,7 @@ def message_detail(request, message_id):
     return JsonResponse({'message': message_out}, json_dumps_params={'ensure_ascii': False})
 
 
+# 11. получить список сообщений по id чата
 @require_GET
 def messages_by_chat_id(request, chat_id):
     chat = get_object_or_404(Chat, id=chat_id)
@@ -167,6 +243,7 @@ def messages_by_chat_id(request, chat_id):
     return JsonResponse({'messages': message_list}, json_dumps_params={'ensure_ascii': False})
 
 
+# 12. получить информацию о пользователе по id
 @require_GET
 def user_detail(request, user_id):
     user = get_object_or_404(User, id=user_id)
@@ -177,27 +254,3 @@ def user_detail(request, user_id):
         "created_at": user.created_at.strftime('%d.%m.%Y %H:%M'),
     }
     return JsonResponse({'user': user_info}, json_dumps_params={'ensure_ascii': False})
-
-
-# @require_GET
-# def chat_page(request, pk):
-#     chat = [
-#         {
-#             "id": pk,
-#             "name": "Дженнифер Эшли",
-#             "avatar": "img_12-12-09",
-#             "online": False,
-#             "last_online": "15:38",
-#             "messages": [
-#                 {
-#                     "message": "Lorem ipsum dolor sit amet",
-#                     "sent_at": "14:59",
-#                 },
-#                 {
-#                     "message": "Срочное совещание на третьем этаже!",
-#                     "sent_at": "17:43",
-#                 },
-#             ]
-#         },
-#     ]
-#     return JsonResponse({'chat': chat}, json_dumps_params={'ensure_ascii': False})
