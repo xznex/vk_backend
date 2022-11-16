@@ -10,23 +10,53 @@ def start_page(request):
     return render(request, "chats/index.html")
 
 
-# chat_create, message_create
-# chat_detail, message_detail by ID
-# chats_by_id - все чаты, которые есть у пользователя, messages_by_chat_id - все сообщения польза. по id чата
-# chat_edit, message_edit by ID
-# chat_delete, message_delete by ID
-
-
 @require_POST
-def chat_create(request, title, creator_id, avatar=None, is_group=False):
+def chat_create(request, title, description, creator_id):
     creator = get_object_or_404(User, id=creator_id)
-    Chat.objects.create(title=title, avatar=avatar, creator=creator, is_group=is_group)
+    chat = Chat.objects.create(title=title, description=description, creator=creator)
+    ChatMember.objects.create(chat=chat, member=creator)
+    return JsonResponse({'chat': [chat.title, chat.created_at.strftime('%d.%m.%Y %H:%M'),
+                                  chat.creator.username, chat.description]}, json_dumps_params={'ensure_ascii': False})
 
 
 @require_POST
-def message_create(request, chat, sender, text, is_delivered=False):
-    sender = get_object_or_404(User, id=sender)
-    Chat.objects.create(chat=chat, sender=sender, text=text, is_delivered=is_delivered)
+def chat_edit(request, chat_id, title=False, description=False):
+    chat = get_object_or_404(Chat, id=chat_id)
+    if title == chat.title or description == chat.description:
+        return JsonResponse({'error': 'duplicate title or description'})
+    if title:
+        chat.title = title
+    if description:
+        chat.description = description
+    chat.save()
+    return JsonResponse({'chat': [chat.title, chat.created_at.strftime('%d.%m.%Y %H:%M'),
+                                  chat.creator.username, chat.description]}, json_dumps_params={'ensure_ascii': False})
+
+
+@require_POST
+def chat_add_user(request, user_id, chat_id):
+    chat = get_object_or_404(Chat, id=chat_id)
+    user = get_object_or_404(User, id=user_id)
+    if ChatMember.objects.filter(chat=chat, member=user).first():
+        return JsonResponse({'error': "user already added"})
+    ChatMember.objects.create(chat=chat, member=user)
+    return JsonResponse({'chat_member': [chat.title, user.username]}, json_dumps_params={'ensure_ascii': False})
+
+
+@require_POST
+def chat_delete_user(request, user_id, chat_id):
+    chat = get_object_or_404(Chat, id=chat_id)
+    user = get_object_or_404(User, id=user_id)
+    chat_member = get_object_or_404(ChatMember, chat=chat, member=user)
+    chat_member.delete()
+    return JsonResponse({'success': "user removed from chat"}, json_dumps_params={'ensure_ascii': False})
+
+
+@require_POST
+def chat_delete(request, chat_id):
+    chat = get_object_or_404(Chat, id=chat_id)
+    chat.delete()
+    return JsonResponse({'success': "chat deleted"}, json_dumps_params={'ensure_ascii': False})
 
 
 @require_GET
@@ -35,12 +65,76 @@ def chat_detail(request, pk):
     chat_out = {
        "id": pk,
        "title": chat.title,
-       # "avatar": chat.avatar,
+       "description": chat.description,
        "created_at": chat.created_at.strftime('%d.%m.%Y %H:%M'),
        "creator": chat.creator.username,
        "is_group": chat.is_group
-   },
+    },
     return JsonResponse({'chat': chat_out}, json_dumps_params={'ensure_ascii': False})
+
+
+@require_GET
+def chat_list(request):
+    chats = Chat.objects.all()
+    chat_list = []
+    for chat in chats:
+        chat_list.append({
+            "id": chat.id,
+            "title": chat.title,
+            "description": chat.description,
+            "created_at": chat.created_at.strftime('%d.%m.%Y %H:%M'),
+            "creator": chat.creator.username,
+            "is_group": chat.is_group
+        })
+    return JsonResponse({'chats': chat_list}, json_dumps_params={'ensure_ascii': False})
+
+
+@require_GET
+def chats_by_user_id(request, user_id):
+    user = get_object_or_404(User, id=user_id)
+    chats = user.creator_chats.all()
+    chat_list = []
+    for chat in chats:
+        chat_list.append({
+            "id": chat.id,
+            "title": chat.title,
+            "description": chat.description,
+            "created_at": chat.created_at.strftime('%d.%m.%Y %H:%M'),
+            "creator": chat.creator.username,
+            "is_group": chat.is_group
+        })
+    print(chat_list)
+    return JsonResponse({'chats': chat_list}, json_dumps_params={'ensure_ascii': False})
+
+
+@require_POST
+def chat_send_message(request, chat_member_id, text):
+    chat_member = get_object_or_404(ChatMember, id=chat_member_id)
+    message = Message.objects.create(chat=chat_member.chat, sender=chat_member, text=text)
+    return JsonResponse({'message': [chat_member.member.username, chat_member.chat.title,
+                                     message.sent_at.strftime('%d.%m.%Y %H:%M'), text]},
+                        json_dumps_params={'ensure_ascii': False})
+
+
+@require_POST
+def message_edit(request, message_id, text):
+    Message.objects.filter(id=message_id).update(text=text)
+    return JsonResponse({'message': text}, json_dumps_params={'ensure_ascii': False})
+
+
+@require_POST
+def message_delivered(request, message_id):
+    message = get_object_or_404(Message, id=message_id)
+    message.is_delivered = True
+    message.save()
+    return JsonResponse({'success': "message delivered"}, json_dumps_params={'ensure_ascii': False})
+
+
+@require_POST
+def message_delete(request, message_id):
+    message = get_object_or_404(Message, id=message_id)
+    message.delete()
+    return JsonResponse({'success': "message deleted"}, json_dumps_params={'ensure_ascii': False})
 
 
 @require_GET
@@ -49,7 +143,7 @@ def message_detail(request, message_id):
     message_out = {
         "id": message.id,
         "chat": message.chat.title,
-        "sender": message.sender.username,
+        "sender": message.sender.member.username,
         "is_delivered": message.is_delivered,
         "sent_at": message.sent_at.strftime('%d.%m.%Y %H:%M'),
         "text": message.text,
@@ -58,65 +152,32 @@ def message_detail(request, message_id):
 
 
 @require_GET
-def chats_by_id(request, user_id):
-    user = get_object_or_404(User, user_id)
-    chats = user.creator_chats.all()
-    return JsonResponse({'chats': chats}, json_dumps_params={'ensure_ascii': False})
+def messages_by_chat_id(request, chat_id):
+    chat = get_object_or_404(Chat, id=chat_id)
+    messages = Message.objects.filter(chat=chat)
+    message_list = []
+    for message in messages:
+        message_list.append({
+            "id": message.id,
+            "sender": message.sender.member.username,
+            "is_delivered": message.is_delivered,
+            "text": message.text,
+            "sent_at": message.sent_at.strftime('%d.%m.%Y %H:%M'),
+        })
+    return JsonResponse({'messages': message_list}, json_dumps_params={'ensure_ascii': False})
 
 
 @require_GET
-def messages_by_chat_id(request, user_id, chat_id):
-    user = get_object_or_404(User, user_id)
-    chat = get_object_or_404(Chat, chat_id)
-    messages = Message.objects.filter(sender=user, chat=chat)
-    return JsonResponse({'messages': messages}, json_dumps_params={'ensure_ascii': False})
+def user_detail(request, user_id):
+    user = get_object_or_404(User, id=user_id)
+    user_info = {
+        "id": user.id,
+        "phone": user.phone,
+        "bio": user.bio,
+        "created_at": user.created_at.strftime('%d.%m.%Y %H:%M'),
+    }
+    return JsonResponse({'user': user_info}, json_dumps_params={'ensure_ascii': False})
 
-
-@require_POST
-def chat_edit(request, chat_id, title=None, avatar=None):
-    chat = get_object_or_404(Chat, chat_id)
-    if title is not None:
-        chat.update(title=title)
-    if avatar is not None:
-        chat.update(avatar=avatar)
-
-
-@require_POST
-def message_edit(request, message_id, text):
-    message = get_object_or_404(Message, message_id)
-    message.update(text=text)
-
-
-@require_POST
-def chat_delete(request, chat_id):
-    chat = get_object_or_404(Chat, chat_id)
-    chat.delete()
-
-
-@require_POST
-def message_delete(request, message_id):
-    message = get_object_or_404(Message, message_id)
-    message.delete()
-
-
-@require_GET
-def chat_list(request):
-    chats = Chat.objects.all()
-    chat_set = []
-    for chat in chats:
-        chat_set.append(
-            {
-                "id": chat.id,
-                "title": chat.title,
-                # "avatar": chat.avatar,
-                "last_message": "Ты куда пропал?",
-                "sent_at": "15:52",
-                "number_of_unread_messages": 99,
-                "viewed": False,
-                "all": False
-            }
-        )
-    return JsonResponse({'chats': chat_set}, json_dumps_params={'ensure_ascii': False})
 
 # @require_GET
 # def chat_page(request, pk):

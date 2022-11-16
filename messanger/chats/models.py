@@ -1,9 +1,11 @@
 from django.db import models
 from django.conf import settings
+from users.models import User
 
 
 class Chat(models.Model):
     title = models.CharField(max_length=60, verbose_name="Название")
+    description = models.CharField(null=True, blank=True, max_length=160, default=False, verbose_name="Описание")
     avatar = models.ImageField(null=True, blank=True, verbose_name="Аватар")
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Дата создания")
     creator = models.ForeignKey(
@@ -23,23 +25,32 @@ class Chat(models.Model):
         verbose_name_plural = "Чаты"
 
 
+def get_default_user():
+    return User.objects.get(id=2)
+
+
 class ChatMember(models.Model):
     chat = models.ForeignKey(
-        Chat,
+        'Chat',
         on_delete=models.CASCADE,
-        related_name="chat_chatMembers",
+        related_name="chat_chatMember",
         verbose_name="Чат"
     )
-    members = models.ManyToManyField(
+    member = models.ForeignKey(
         settings.AUTH_USER_MODEL,
-        related_name="member_chatMembers",
-        verbose_name="Участник"
+        on_delete=models.CASCADE,
+        related_name="member_chatMember",
+        verbose_name="Участник",
+        default=get_default_user
     )
-    # is_creator = models.BooleanField(default=False, verbose_name="Создатель?")
-    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Дата создания")
+    is_owner = models.BooleanField(default=False, verbose_name="Владелец")
+    added_at = models.DateTimeField(auto_now_add=True, verbose_name="Дата создания")
+
+    def __str__(self):
+        return self.member.username
 
     class Meta:
-        ordering = ["-created_at"]
+        ordering = ["-added_at"]
         verbose_name = "Участник чата"
         verbose_name_plural = "Участники чата"
 
@@ -52,14 +63,14 @@ class Message(models.Model):
         verbose_name="Чат"
     )
     sender = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
+        ChatMember,
         on_delete=models.CASCADE,
         related_name="sender_messages",
         verbose_name="Отправитель"
     )
     is_delivered = models.BooleanField(default=False, verbose_name="Доставлено ли сообщение")
     sent_at = models.DateTimeField(auto_now_add=True, verbose_name="Дата создания")
-    text = models.TextField(null=True, blank=True, verbose_name="Текст сообщения")
+    text = models.TextField(verbose_name="Текст сообщения")
 
     def __str__(self):
         return self.text
