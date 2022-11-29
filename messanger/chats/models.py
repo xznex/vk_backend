@@ -47,7 +47,7 @@ class ChatMember(models.Model):
     added_at = models.DateTimeField(auto_now_add=True, verbose_name="Дата создания")
 
     def __str__(self):
-        return self.member.username
+        return self.member.username + ' - chat ' + str(self.chat.id)
 
     class Meta:
         ordering = ["-added_at"]
