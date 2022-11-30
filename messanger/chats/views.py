@@ -1,8 +1,19 @@
 from chats.serializers import ChatSerializer, UserSerializer, ChatMemberSerializer, MessageSerializer
+from django.contrib.auth.decorators import login_required
+from django.http import JsonResponse
+from django.shortcuts import render, get_object_or_404
 from rest_framework import generics
 
 from chats.models import Chat, ChatMember, Message
 from users.models import User
+
+
+def login(request):
+    return render(request, 'login.html')
+
+
+def home(request):
+    return render(request, 'home.html')
 
 
 class ChatCreateView(generics.CreateAPIView):
@@ -10,6 +21,9 @@ class ChatCreateView(generics.CreateAPIView):
     serializer_class = ChatSerializer
 
 
+# if Chat.creator.filter(id=request.user.id).exists():
+# 		ChatMember.objects.create(chat=chat, user=user)
+# 		return JsonResponse()
 class ChatRUDView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Chat.objects.all()
     serializer_class = ChatSerializer
@@ -59,3 +73,12 @@ class ChatMessagesView(generics.ListAPIView):
     def get_queryset(self):
         chat_id = self.kwargs['chat_id']
         return Message.objects.filter(chat__id=chat_id)
+
+
+# def add_user(self, chat_id, user_id):
+#     chat = get_object_or_404(Chat, id=chat_id)
+#     user = get_object_or_404(User, id=user_id)
+#     if Chat.objects.get(id=user_id).creator.is_owner:
+#         ChatMember.objects.create(chat=chat, user=user)
+#         return JsonResponse()
+#     return JsonResponse({'error': 'Only admin can add chat members'}, status=403)

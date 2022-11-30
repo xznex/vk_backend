@@ -1,6 +1,5 @@
 from django.db import models
 from django.conf import settings
-from users.models import User
 
 
 class Chat(models.Model):
@@ -26,7 +25,7 @@ class Chat(models.Model):
 
 
 def get_default_user():
-    return User.objects.get(id=2)
+    return settings.AUTH_USER_MODEL.objects.get(id=2)
 
 
 class ChatMember(models.Model):
