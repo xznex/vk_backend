@@ -1,7 +1,7 @@
 from django.urls import path
-from .views import user_page
+from .views import UserRetrieveView
 
 
 urlpatterns = [
-    path('<int:pk>/', user_page, name="user_page"),
+    path('<int:pk>/', UserRetrieveView.as_view(), name="user_detail"),
 ]
