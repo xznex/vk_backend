@@ -1,8 +1,7 @@
-from chats.serializers import ChatSerializer, UserSerializer, ChatMemberSerializer, MessageSerializer
-from django.contrib.auth.decorators import login_required
-from django.http import JsonResponse
+from chats.serializers import ChatSerializer, ChatMemberSerializer, MessageSerializer
 from django.shortcuts import render, get_object_or_404
 from rest_framework import generics
+from rest_framework.response import Response
 
 from chats.models import Chat, ChatMember, Message
 from users.models import User
@@ -21,9 +20,6 @@ class ChatCreateView(generics.CreateAPIView):
     serializer_class = ChatSerializer
 
 
-# if Chat.creator.filter(id=request.user.id).exists():
-# 		ChatMember.objects.create(chat=chat, user=user)
-# 		return JsonResponse()
 class ChatRUDView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Chat.objects.all()
     serializer_class = ChatSerializer
@@ -46,15 +42,22 @@ class ChatMemberCreateView(generics.CreateAPIView):
     queryset = ChatMember.objects.all()
     serializer_class = ChatMemberSerializer
 
+    def create(self, request, *args, **kwargs):
+        data = self.request.data
+        chat = get_object_or_404(Chat, id=data.get('chat'))
+        user = get_object_or_404(User, id=data.get('member'))
+
+        if ChatMember.objects.filter(chat=chat, member=user).exists():
+            return Response({'error': "user already added"}, status=401)
+
+        ChatMember.objects.create(chat=chat, member=user)
+
+        return Response({'status': 'success', 'message': 'a user has been added to the chat'}, status=201)
+
 
 class ChatMemberDeleteView(generics.DestroyAPIView):
     queryset = ChatMember.objects.all()
     serializer_class = ChatMemberSerializer
-
-
-class UserRetrieveView(generics.RetrieveAPIView):
-    queryset = User.objects.all()
-    serializer_class = UserSerializer
 
 
 class MessageRUDView(generics.RetrieveUpdateDestroyAPIView):
@@ -73,12 +76,3 @@ class ChatMessagesView(generics.ListAPIView):
     def get_queryset(self):
         chat_id = self.kwargs['chat_id']
         return Message.objects.filter(chat__id=chat_id)
-
-
-# def add_user(self, chat_id, user_id):
-#     chat = get_object_or_404(Chat, id=chat_id)
-#     user = get_object_or_404(User, id=user_id)
-#     if Chat.objects.get(id=user_id).creator.is_owner:
-#         ChatMember.objects.create(chat=chat, user=user)
-#         return JsonResponse()
-#     return JsonResponse({'error': 'Only admin can add chat members'}, status=403)

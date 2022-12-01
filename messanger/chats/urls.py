@@ -13,9 +13,8 @@ urlpatterns = [
     path('delete_user/<int:pk>/', ChatMemberDeleteView.as_view(), name="chat_delete_user"),
     path('message/send/', MessageSendView.as_view(), name="message_send"),
     path('message/edit/<int:pk>/', MessageRUDView.as_view(), name="message_edit"),
-    path('message/delivered/<int:pk>', MessageRUDView.as_view(), name="message_delivered"),
+    path('message/delivered/<int:pk>/', MessageRUDView.as_view(), name="message_delivered"),
     path('message/delete/<int:pk>/', MessageRUDView.as_view(), name="message_delete"),
     path('message/<int:pk>/', MessageRUDView.as_view(), name="message_detail"),
     path('messages/<int:chat_id>/', ChatMessagesView.as_view(), name="chat_messages"),
-    path('user/<int:pk>/', UserRetrieveView.as_view(), name="user_detail"),
 ]

@@ -22,19 +22,3 @@ class LoginMiddleware(MiddlewareMixin):
                         url=request.path_info, allowed_hosts=request.get_host()):
                     redirect_to = f"{settings.LOGIN_URL}"
                 return HttpResponseRedirect(redirect_to)
-
-
-                # class LoginMiddleware(object):
-#     def __init__(self, get_response):
-#         self.get_response = get_response
-#
-#     def __call__(self, request):
-#         return self.get_response(request)
-#
-#     def process_view(self, request, view_func, view_args, view_kwargs):
-#         assert hasattr(request, 'user')
-#
-#         if not request.user.is_authenticated:
-#             if True:
-#                 return redirect(settings.LOGIN_REDIRECT_URL)
-
